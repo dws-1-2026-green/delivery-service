@@ -27,7 +27,7 @@ func (s *RetryDeliveryService) Deliver(ctx context.Context, msg model.DeliveryMe
 	var err error
 
 	for attempt := 0; attempt <= s.MaxRetries; attempt++ {
-		err = s.HttpClient.Send(ctx, msg.Subscription.DestinationURL, []byte{})
+		err = s.HttpClient.Send(ctx, msg.Subscription.DestinationURL, msg.Event.Data)
 		if err == nil {
 			log.Printf("delivery success: %s (attempt %d)\n", msg.DeliveryID, attempt+1)
 			return nil

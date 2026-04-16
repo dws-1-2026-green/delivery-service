@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type DeliveryMessage struct {
 	DeliveryID   string       `json:"delivery_id"` // id доставки
@@ -11,14 +14,8 @@ type DeliveryMessage struct {
 }
 
 type Event struct {
-	ID   string    `json:"id"`
-	Data EventData `json:"data"`
-}
-
-type EventData struct {
-	OrderID  string `json:"order_id"`
-	Amount   int    `json:"amount"`
-	Currency string `json:"currency"`
+	ID   string          `json:"id"`
+	Data json.RawMessage `json:"data"`
 }
 
 type Subscription struct {
