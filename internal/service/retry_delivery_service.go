@@ -15,9 +15,9 @@ type RetryDeliveryService struct {
 	Delay      time.Duration
 }
 
-func NewRetryDeliveryService(client *client.HTTPClient) *RetryDeliveryService {
+func NewRetryDeliveryService(httpClient *client.HTTPClient) *RetryDeliveryService {
 	return &RetryDeliveryService{
-		HttpClient: client,
+		HttpClient: httpClient,
 		MaxRetries: 3,
 		Delay:      2 * time.Second,
 	}
@@ -27,7 +27,7 @@ func (s *RetryDeliveryService) Deliver(ctx context.Context, msg model.DeliveryMe
 	var err error
 
 	for attempt := 0; attempt <= s.MaxRetries; attempt++ {
-		err = s.HttpClient.Send(ctx, msg.Subscription.DestinationURL, msg.Event.Data)
+		err = s.HttpClient.Send(ctx, msg.Subscription.Method, msg.Subscription.DestinationURL, msg.Subscription.Headers, msg.Event.Data)
 		if err == nil {
 			log.Printf("delivery success: %s (attempt %d)\n", msg.DeliveryID, attempt+1)
 			return nil
