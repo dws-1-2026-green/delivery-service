@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/jbisss/webhook-manager/delivery-service/internal/client"
@@ -39,12 +39,19 @@ func (s *RetryDeliveryService) Deliver(ctx context.Context, msg model.DeliveryMe
 		if err == nil {
 			metrics.DeliveryAttempts.WithLabelValues("success").Inc()
 			metrics.DeliveryFinalStatus.WithLabelValues("success").Inc()
-			log.Printf("delivery success: %s (attempt %d)\n", msg.DeliveryID, attempt+1)
+			slog.Info("delivery success",
+				slog.String("delivery_id", msg.DeliveryID),
+				slog.Int("attempt", attempt+1),
+			)
 			return nil
 		}
 
 		metrics.DeliveryAttempts.WithLabelValues("failure").Inc()
-		log.Printf("delivery failed: %s (attempt %d): %v\n", msg.DeliveryID, attempt+1, err)
+		slog.Warn("delivery attempt failed",
+			slog.String("delivery_id", msg.DeliveryID),
+			slog.Int("attempt", attempt+1),
+			slog.Any("error", err),
+		)
 
 		if attempt == s.MaxRetries {
 			break

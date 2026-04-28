@@ -2,7 +2,7 @@ package consumer
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	"github.com/jbisss/webhook-manager/delivery-service/internal/processor"
 	"github.com/segmentio/kafka-go"
@@ -33,7 +33,7 @@ func (c *KafkaConsumer) Start(ctx context.Context) error {
 	for {
 		msg, err := c.reader.ReadMessage(ctx)
 		if err != nil {
-			log.Println("error reading message:", err)
+			slog.Error("error reading message from kafka", slog.Any("error", err))
 			continue
 		}
 
