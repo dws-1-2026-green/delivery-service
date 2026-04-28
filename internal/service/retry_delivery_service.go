@@ -33,7 +33,7 @@ func (s *RetryDeliveryService) Deliver(ctx context.Context, msg model.DeliveryMe
 		}
 
 		start := time.Now()
-		err = s.HttpClient.Send(ctx, msg.Subscription.DestinationURL, msg.Event.Data)
+		err = s.HttpClient.Send(ctx, msg.Subscription.Method, msg.Subscription.DestinationURL, msg.Subscription.Headers, msg.Event.Data)
 		metrics.DeliveryAttemptDuration.Observe(time.Since(start).Seconds())
 
 		if err == nil {
