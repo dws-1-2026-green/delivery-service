@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jbisss/webhook-manager/delivery-service/internal/client"
+	"github.com/jbisss/webhook-manager/delivery-service/internal/metrics"
 	"github.com/jbisss/webhook-manager/delivery-service/internal/model"
 )
 
@@ -27,12 +28,22 @@ func (s *RetryDeliveryService) Deliver(ctx context.Context, msg model.DeliveryMe
 	var err error
 
 	for attempt := 0; attempt <= s.MaxRetries; attempt++ {
+		if attempt > 0 {
+			metrics.DeliveryRetriesTotal.Inc()
+		}
+
+		start := time.Now()
 		err = s.HttpClient.Send(ctx, msg.Subscription.DestinationURL, msg.Event.Data)
+		metrics.DeliveryAttemptDuration.Observe(time.Since(start).Seconds())
+
 		if err == nil {
+			metrics.DeliveryAttempts.WithLabelValues("success").Inc()
+			metrics.DeliveryFinalStatus.WithLabelValues("success").Inc()
 			log.Printf("delivery success: %s (attempt %d)\n", msg.DeliveryID, attempt+1)
 			return nil
 		}
 
+		metrics.DeliveryAttempts.WithLabelValues("failure").Inc()
 		log.Printf("delivery failed: %s (attempt %d): %v\n", msg.DeliveryID, attempt+1, err)
 
 		if attempt == s.MaxRetries {
@@ -46,5 +57,6 @@ func (s *RetryDeliveryService) Deliver(ctx context.Context, msg model.DeliveryMe
 		}
 	}
 
+	metrics.DeliveryFinalStatus.WithLabelValues("exhausted").Inc()
 	return err
 }

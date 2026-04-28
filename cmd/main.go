@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,8 +11,10 @@ import (
 	"github.com/jbisss/webhook-manager/delivery-service/internal/client"
 	"github.com/jbisss/webhook-manager/delivery-service/internal/config"
 	"github.com/jbisss/webhook-manager/delivery-service/internal/consumer"
+	_ "github.com/jbisss/webhook-manager/delivery-service/internal/metrics"
 	"github.com/jbisss/webhook-manager/delivery-service/internal/processor"
 	"github.com/jbisss/webhook-manager/delivery-service/internal/service"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -30,6 +33,14 @@ func main() {
 		config.KafkaGroupID,
 		processor,
 	)
+
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		if err := http.ListenAndServe(config.MetricsAddr, mux); err != nil {
+			log.Printf("metrics server: %v", err)
+		}
+	}()
 
 	go func() {
 		if err := kafkaConsumer.Start(ctx); err != nil {

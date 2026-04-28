@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/jbisss/webhook-manager/delivery-service/internal/metrics"
 	"github.com/jbisss/webhook-manager/delivery-service/internal/model"
 	"github.com/jbisss/webhook-manager/delivery-service/internal/service"
 )
@@ -20,6 +21,8 @@ func New(service service.DeliveryService) *SimpleDeliveryProcessor {
 }
 
 func (p *SimpleDeliveryProcessor) Process(ctx context.Context, msgRawBytes []byte) {
+	metrics.MessagesReceived.Inc()
+
 	var msg model.DeliveryMessage
 
 	if err := json.Unmarshal(msgRawBytes, &msg); err != nil {
