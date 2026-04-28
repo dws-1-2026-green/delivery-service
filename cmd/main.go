@@ -75,14 +75,6 @@ func main() {
 	)
 
 	go func() {
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
-		if err := http.ListenAndServe(config.MetricsAddr, mux); err != nil {
-			log.Printf("metrics server: %v", err)
-		}
-	}()
-
-	go func() {
 		if err := kafkaConsumer.Start(ctx); err != nil {
 			slog.Error("consumer stopped", slog.Any("error", err))
 			cancel()
