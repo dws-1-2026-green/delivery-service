@@ -16,13 +16,27 @@ func NewHTTPClient() *HTTPClient {
 	}
 }
 
-func (c *HTTPClient) Send(ctx context.Context, url string, payload []byte) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+func (c *HTTPClient) Send(ctx context.Context, method, url string, headers map[string]string, payload []byte) error {
+	var req *http.Request
+	var err error
+
+	if method == http.MethodGet {
+		req, err = http.NewRequestWithContext(ctx, method, url, nil)
+	} else {
+		req, err = http.NewRequestWithContext(ctx, method, url, bytes.NewReader(payload))
+	}
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	if method != http.MethodGet && req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
 	resp, err := c.Client.Do(req)
 	if err != nil {
 		return err
