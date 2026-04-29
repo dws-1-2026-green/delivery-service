@@ -47,7 +47,7 @@ services:
 
   delivery-dashboard:
     build:
-      context: ../delivery-dashboard
+      context: ../dashboard
       dockerfile: Dockerfile
     container_name: ds-dashboard
     environment:
