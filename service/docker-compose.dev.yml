@@ -1,0 +1,65 @@
+version: '3.8'
+
+# Локальный стенд для delivery-service:
+#   postgres          — БД с авто-сидом тестовых доставок
+#   kafka             — брокер (KRaft, без Zookeeper)
+#   delivery-service  — воркер доставок (читает Kafka, пишет в postgres)
+#   delivery-dashboard— UI просмотра доставок (читает postgres)  http://localhost:9096
+#
+# Запуск:  docker compose -f docker-compose.dev.yml up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ds-postgres
+    environment:
+      POSTGRES_USER: ds
+      POSTGRES_PASSWORD: ds-password
+      POSTGRES_DB: delivery
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./dev/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+      - ds-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ds -d delivery"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  delivery-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ds-delivery
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_TOPIC: deliveries.to_send
+      KAFKA_GROUP_ID: delivery-group
+      DATABASE_URL: postgres://ds:ds-password@postgres:5432/delivery
+      METRICS_ADDR: :9095
+      LOG_LEVEL: debug
+      LOG_FORMAT: json
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  delivery-dashboard:
+    build:
+      context: ../delivery-dashboard
+      dockerfile: Dockerfile
+    container_name: ds-dashboard
+    environment:
+      DATABASE_URL: postgres://ds:ds-password@postgres:5432/delivery
+      ADDR: :9096
+      LOG_LEVEL: info
+    ports:
+      - "9096:9096"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  ds-postgres-data:

@@ -29,6 +29,17 @@ var (
 
 	DeliveryRetriesTotal = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "delivery_retries_total",
-		Help: "Total retry attempts (excludes the first delivery attempt)",
+		Help: "Total retry attempts made by the scheduler",
+	})
+
+	PendingDeliveries = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "delivery_pending_total",
+		Help: "Current number of pending deliveries in the store",
+	})
+
+	SchedulerTickDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "delivery_scheduler_tick_duration_seconds",
+		Help:    "Duration of a single scheduler tick",
+		Buckets: prometheus.DefBuckets,
 	})
 )
