@@ -11,9 +11,10 @@ import (
 type KafkaConsumer struct {
 	reader    *kafka.Reader
 	processor processor.DeliveryProcessor
+	workers   int
 }
 
-func New(brokers []string, topic, groupID string, deliveryProcessor processor.DeliveryProcessor) *KafkaConsumer {
+func New(brokers []string, topic, groupID string, deliveryProcessor processor.DeliveryProcessor, workers int) *KafkaConsumer {
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: brokers,
 		Topic:   topic,
@@ -23,12 +24,12 @@ func New(brokers []string, topic, groupID string, deliveryProcessor processor.De
 	return &KafkaConsumer{
 		reader:    r,
 		processor: deliveryProcessor,
+		workers:   workers,
 	}
 }
 
 func (c *KafkaConsumer) Start(ctx context.Context) error {
-	const maxWorkers = 10
-	semaphore := make(chan struct{}, maxWorkers)
+	semaphore := make(chan struct{}, c.workers)
 
 	for {
 		msg, err := c.reader.ReadMessage(ctx)

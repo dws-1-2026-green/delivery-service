@@ -9,12 +9,16 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jbisss/webhook-manager/delivery-service/internal/backoff"
 	"github.com/jbisss/webhook-manager/delivery-service/internal/client"
 	"github.com/jbisss/webhook-manager/delivery-service/internal/config"
 	"github.com/jbisss/webhook-manager/delivery-service/internal/consumer"
 	_ "github.com/jbisss/webhook-manager/delivery-service/internal/metrics"
 	"github.com/jbisss/webhook-manager/delivery-service/internal/processor"
+	"github.com/jbisss/webhook-manager/delivery-service/internal/scheduler"
 	"github.com/jbisss/webhook-manager/delivery-service/internal/service"
+	"github.com/jbisss/webhook-manager/delivery-service/internal/store"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -63,8 +67,44 @@ func main() {
 		}
 	}()
 
+	backoffCfg := backoff.Config{
+		BaseDelay:   cfg.BackoffBaseDelay,
+		MaxDelay:    cfg.BackoffMaxDelay,
+		MaxAttempts: cfg.BackoffMaxAttempts,
+	}
+
+	var deliveryStore store.DeliveryStore = store.NopStore{}
+	if cfg.DatabaseURL != "" {
+		poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+		if err != nil {
+			slog.Error("failed to parse database url", slog.Any("error", err))
+			os.Exit(1)
+		}
+		poolCfg.MaxConns = int32(cfg.DBMaxConns)
+		pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+		if err != nil {
+			slog.Error("failed to connect to postgres", slog.Any("error", err))
+			os.Exit(1)
+		}
+		defer pool.Close()
+
+		ps, err := store.NewPostgresStore(ctx, pool)
+		if err != nil {
+			slog.Error("failed to init delivery store", slog.Any("error", err))
+			os.Exit(1)
+		}
+		deliveryStore = ps
+		slog.Info("delivery store initialized (postgres)")
+	} else {
+		slog.Info("delivery store disabled (DATABASE_URL not set)")
+	}
+
 	httpClient := client.NewHTTPClient()
-	deliveryService := service.NewRetryDeliveryService(httpClient)
+
+	sched := scheduler.New(deliveryStore, httpClient, backoffCfg, cfg.SchedulerWorkers)
+	go sched.Run(ctx)
+
+	deliveryService := service.NewRetryDeliveryService(httpClient, deliveryStore, backoffCfg)
 	proc := processor.New(deliveryService)
 
 	kafkaConsumer := consumer.New(
@@ -72,6 +112,7 @@ func main() {
 		cfg.KafkaTopic,
 		cfg.KafkaGroupID,
 		proc,
+		cfg.ConsumerWorkers,
 	)
 
 	go func() {
