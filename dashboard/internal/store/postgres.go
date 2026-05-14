@@ -17,7 +17,7 @@ func NewPostgresStore(pool *pgxpool.Pool) Store {
 func (s *postgresStore) ListDeliveries(ctx context.Context, status, eventID string, limit, offset int) ([]DeliveryRecord, error) {
 	const q = `
 		SELECT id, event_id, subscription_id, destination_url, method, status,
-		       attempts, next_attempt, last_error, created_at, updated_at
+		       attempts, next_attempt, last_error, payload, created_at, updated_at
 		FROM deliveries
 		WHERE ($1 = '' OR status = $1)
 		  AND ($2 = '' OR event_id = $2)
@@ -35,7 +35,7 @@ func (s *postgresStore) ListDeliveries(ctx context.Context, status, eventID stri
 		var r DeliveryRecord
 		if err := rows.Scan(
 			&r.ID, &r.EventID, &r.SubscriptionID, &r.DestinationURL, &r.Method, &r.Status,
-			&r.Attempts, &r.NextAttempt, &r.LastError, &r.CreatedAt, &r.UpdatedAt,
+			&r.Attempts, &r.NextAttempt, &r.LastError, &r.Payload, &r.CreatedAt, &r.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

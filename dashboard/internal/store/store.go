@@ -23,6 +23,7 @@ type DeliveryRecord struct {
 	Attempts       int
 	NextAttempt    *time.Time
 	LastError      string
+	Payload        []byte
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }

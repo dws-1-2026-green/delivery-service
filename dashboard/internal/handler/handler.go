@@ -64,6 +64,7 @@ var funcMap = template.FuncMap{
 		}
 		return s[:n] + "…"
 	},
+	"bytesToStr": func(b []byte) string { return string(b) },
 	"fmtTime": func(t time.Time) string {
 		if t.IsZero() {
 			return "—"
@@ -123,7 +124,7 @@ const pageTmpl = `<!DOCTYPE html>
 html, body { height: 100%; }
 body {
   font-family: "MS Sans Serif", Tahoma, Verdana, Arial, sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   background: #008080;
   display: flex;
   flex-direction: column;
@@ -137,7 +138,7 @@ body {
   border-left: 2px solid #ffffff;
   border-right: 2px solid #404040;
   border-bottom: 2px solid #404040;
-  margin: 8px;
+  margin: 10px;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -148,56 +149,25 @@ body {
 #titlebar {
   background: linear-gradient(to right, #000080, #1084d0);
   color: #fff;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: bold;
-  padding: 3px 4px;
+  padding: 5px 8px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   user-select: none;
 }
-#titlebar .title-icon { font-size: 14px; }
+#titlebar .title-icon { font-size: 16px; }
 #titlebar .title-text { flex: 1; letter-spacing: 0.5px; }
-.wbtn {
-  width: 16px; height: 14px;
-  background: #c0c0c0;
-  border-top: 1px solid #ffffff;
-  border-left: 1px solid #ffffff;
-  border-right: 1px solid #404040;
-  border-bottom: 1px solid #404040;
-  font-size: 9px;
-  color: #000;
-  display: flex; align-items: center; justify-content: center;
-  cursor: default;
-  font-weight: bold;
-  line-height: 1;
-}
-
-/* ── Menu bar ────────────────────────────────────── */
-#menubar {
-  background: #c0c0c0;
-  border-bottom: 1px solid #808080;
-  padding: 1px 4px;
-  font-size: 11px;
-  display: flex; gap: 2px;
-}
-.menu-item {
-  padding: 2px 8px;
-  cursor: default;
-}
-.menu-item:hover {
-  background: #000080;
-  color: #fff;
-}
 
 /* ── Content area ────────────────────────────────── */
 #content {
-  padding: 6px;
+  padding: 10px;
   overflow-y: auto;
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
 /* ── Panels ──────────────────────────────────────── */
@@ -211,54 +181,54 @@ body {
 .panel-title {
   background: linear-gradient(to right, #000080, #1084d0);
   color: #fff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
-  padding: 2px 6px;
+  padding: 4px 10px;
   letter-spacing: 0.5px;
 }
-.panel-body { padding: 6px 8px; }
+.panel-body { padding: 10px 12px; }
 
 /* ── Stats ───────────────────────────────────────── */
-.stats-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.stats-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .stat-box {
   background: #c0c0c0;
   border-top: 1px solid #808080;
   border-left: 1px solid #808080;
   border-right: 1px solid #ffffff;
   border-bottom: 1px solid #ffffff;
-  padding: 6px 18px;
-  min-width: 100px;
+  padding: 10px 28px;
+  min-width: 120px;
   text-align: center;
 }
-.stat-label { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 1px; }
-.stat-val { font-size: 22px; font-family: "Courier New", monospace; font-weight: bold; }
+.stat-label { font-size: 11px; color: #444; text-transform: uppercase; letter-spacing: 1px; }
+.stat-val { font-size: 28px; font-family: "Courier New", monospace; font-weight: bold; }
 .stat-total .stat-val  { color: #000080; }
 .stat-pending .stat-val  { color: #996600; }
 .stat-success .stat-val  { color: #006600; }
 .stat-exhausted .stat-val { color: #880000; }
 
 /* ── Filter form ─────────────────────────────────── */
-.filter-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.filter-row label { font-size: 11px; font-weight: bold; white-space: nowrap; }
+.filter-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.filter-row label { font-size: 13px; font-weight: bold; white-space: nowrap; }
 select, input[type=text] {
   border-top: 1px solid #808080;
   border-left: 1px solid #808080;
   border-right: 1px solid #ffffff;
   border-bottom: 1px solid #ffffff;
   background: #fff;
-  font-size: 11px;
-  padding: 1px 3px;
+  font-size: 13px;
+  padding: 3px 6px;
   font-family: "MS Sans Serif", Tahoma, Verdana, sans-serif;
 }
-input[type=text] { width: 240px; }
+input[type=text] { width: 280px; }
 .btn {
   background: #c0c0c0;
   border-top: 2px solid #ffffff;
   border-left: 2px solid #ffffff;
   border-right: 2px solid #808080;
   border-bottom: 2px solid #808080;
-  font-size: 11px;
-  padding: 1px 14px;
+  font-size: 13px;
+  padding: 3px 18px;
   cursor: pointer;
   font-family: "MS Sans Serif", Tahoma, Verdana, sans-serif;
   white-space: nowrap;
@@ -273,9 +243,9 @@ input[type=text] { width: 240px; }
   background: #c0c0c0;
   border: none;
   color: #800000;
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
-  padding: 1px 4px;
+  padding: 3px 6px;
   text-decoration: underline;
   font-family: "MS Sans Serif", Tahoma, Verdana, sans-serif;
 }
@@ -292,13 +262,13 @@ table {
   width: 100%;
   border-collapse: collapse;
   background: #ffffff;
-  font-size: 11px;
+  font-size: 13px;
 }
 thead tr { background: #000080; color: #fff; }
 thead th {
-  padding: 3px 6px;
+  padding: 5px 10px;
   text-align: left;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
   letter-spacing: 0.5px;
   white-space: nowrap;
@@ -310,24 +280,24 @@ tbody tr:hover { background: #c0c8e8; cursor: pointer; }
 tbody tr.selected { background: #000080 !important; color: #fff; }
 tbody tr.selected .badge { border-color: #fff; }
 td {
-  padding: 2px 6px;
+  padding: 4px 10px;
   border-bottom: 1px solid #d8d8d8;
   border-right: 1px solid #e8e8e8;
   font-family: "Courier New", monospace;
   vertical-align: top;
   white-space: nowrap;
   overflow: hidden;
-  max-width: 200px;
+  max-width: 220px;
 }
-td.url { max-width: 260px; }
-td.err { max-width: 240px; }
-td.center { text-align: center; max-width: 60px; }
+td.url { max-width: 300px; }
+td.err { max-width: 260px; }
+td.center { text-align: center; max-width: 70px; }
 
 /* ── Badge ───────────────────────────────────────── */
 .badge {
   display: inline-block;
-  padding: 0px 5px;
-  font-size: 10px;
+  padding: 1px 7px;
+  font-size: 11px;
   font-weight: bold;
   font-family: "MS Sans Serif", Tahoma, Verdana, sans-serif;
   white-space: nowrap;
@@ -348,10 +318,10 @@ td.center { text-align: center; max-width: 60px; }
 }
 #detail-pane .panel-body {
   font-family: "Courier New", monospace;
-  font-size: 11px;
+  font-size: 13px;
   display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 2px 8px;
+  grid-template-columns: 160px 1fr;
+  gap: 4px 12px;
 }
 #detail-pane .dk { font-weight: bold; color: #000080; white-space: nowrap; }
 #detail-pane .dv { word-break: break-all; }
@@ -361,7 +331,7 @@ td.center { text-align: center; max-width: 60px; }
 }
 
 /* ── Pagination ──────────────────────────────────── */
-.pager { display: flex; align-items: center; gap: 6px; font-size: 11px; margin-top: 4px; }
+.pager { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 6px; }
 .pager a {
   color: #000080;
   text-decoration: none;
@@ -370,74 +340,45 @@ td.center { text-align: center; max-width: 60px; }
   border-left: 2px solid #ffffff;
   border-right: 2px solid #808080;
   border-bottom: 2px solid #808080;
-  padding: 1px 10px;
+  padding: 2px 14px;
 }
 .pager a:hover { background: #b0b0e0; }
 .pager .cur { font-weight: bold; color: #000080; }
 
 .no-data {
   text-align: center;
-  padding: 20px;
+  padding: 30px;
   color: #666;
   font-style: italic;
+  font-size: 13px;
 }
 
 /* ── Status bar ──────────────────────────────────── */
 #statusbar {
   border-top: 1px solid #808080;
   background: #c0c0c0;
-  padding: 2px 6px;
+  padding: 3px 8px;
   display: flex;
   gap: 8px;
-  font-size: 11px;
+  font-size: 13px;
+  align-items: center;
 }
 #statusbar .sb-cell {
   border-top: 1px solid #808080;
   border-left: 1px solid #808080;
   border-right: 1px solid #ffffff;
   border-bottom: 1px solid #ffffff;
-  padding: 1px 6px;
+  padding: 2px 8px;
 }
-
-/* ── Taskbar ─────────────────────────────────────── */
-#taskbar {
-  background: #c0c0c0;
-  border-top: 2px solid #ffffff;
-  padding: 2px 4px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.taskbar-start {
-  background: #c0c0c0;
-  border-top: 2px solid #ffffff;
-  border-left: 2px solid #ffffff;
-  border-right: 2px solid #808080;
-  border-bottom: 2px solid #808080;
-  font-size: 12px;
-  font-weight: bold;
-  padding: 1px 8px 1px 4px;
-  cursor: default;
-}
-.taskbar-win {
-  background: #c0c0c0;
-  border-top: 1px solid #808080;
-  border-left: 1px solid #808080;
-  border-right: 1px solid #ffffff;
-  border-bottom: 1px solid #ffffff;
-  font-size: 11px;
-  padding: 1px 10px;
-  cursor: default;
-}
-.taskbar-clock {
+.statusbar-clock {
   margin-left: auto;
   border-top: 1px solid #808080;
   border-left: 1px solid #808080;
   border-right: 1px solid #ffffff;
   border-bottom: 1px solid #ffffff;
-  padding: 1px 8px;
+  padding: 2px 10px;
   font-family: "Courier New", monospace;
-  font-size: 11px;
+  font-size: 13px;
 }
 </style>
 </head>
@@ -449,16 +390,6 @@ td.center { text-align: center; max-width: 60px; }
   <div id="titlebar">
     <span class="title-icon">&#128274;</span>
     <span class="title-text">Delivery Dashboard — Webhook Engine</span>
-    <div class="wbtn">_</div>
-    <div class="wbtn">&#9633;</div>
-    <div class="wbtn" style="color:#800000;font-size:10px;">&#10005;</div>
-  </div>
-
-  <!-- Menu bar -->
-  <div id="menubar">
-    <span class="menu-item"><u>F</u>ile</span>
-    <span class="menu-item"><u>V</u>iew</span>
-    <span class="menu-item"><u>H</u>elp</span>
   </div>
 
   <!-- Content -->
@@ -466,7 +397,7 @@ td.center { text-align: center; max-width: 60px; }
 
     <!-- Stats -->
     <div class="panel">
-      <div class="panel-title">&#9632; System Statistics</div>
+      <div class="panel-title">System Statistics</div>
       <div class="panel-body">
         <div class="stats-row">
           <div class="stat-box stat-total">
@@ -486,10 +417,7 @@ td.center { text-align: center; max-width: 60px; }
             <div class="stat-val">{{ statCount .Stats "exhausted" }}</div>
           </div>
           <div class="stat-box" style="min-width:auto; padding: 6px 12px; display:flex; flex-direction:column; justify-content:center;">
-            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
-              <input type="checkbox" id="autorefresh" onchange="toggleRefresh(this)">
-              <span>Auto-refresh 30s</span>
-            </label>
+            <button class="btn" onclick="location.reload()">&#8635; Refresh</button>
           </div>
         </div>
       </div>
@@ -497,7 +425,7 @@ td.center { text-align: center; max-width: 60px; }
 
     <!-- Filter -->
     <div class="panel">
-      <div class="panel-title">&#9658; Filter</div>
+      <div class="panel-title">Filter</div>
       <div class="panel-body">
         <form method="get" action="/" class="filter-row">
           <label>Status:</label>
@@ -520,7 +448,7 @@ td.center { text-align: center; max-width: 60px; }
     <!-- Detail pane (hidden by default) -->
     <div class="panel" id="detail-pane">
       <div class="panel-title">
-        &#9658; Delivery Details
+        Delivery Details
         <button class="btn" id="detail-close" onclick="closeDetail()" style="float:right;margin:-1px 0 0 0;padding:0 6px;font-size:10px;">&#10005; Close</button>
       </div>
       <div class="panel-body" id="detail-body"></div>
@@ -529,7 +457,7 @@ td.center { text-align: center; max-width: 60px; }
     <!-- Table -->
     <div class="panel" style="flex:1; display:flex; flex-direction:column; min-height:0;">
       <div class="panel-title">
-        &#9658; Deliveries
+        Deliveries
         {{ if ne .Status "" }}&nbsp;[{{ .Status }}]{{ end }}
         {{ if ne .EventID "" }}&nbsp;event={{ .EventID }}{{ end }}
         &nbsp;<span style="font-weight:normal;">(page {{ .Page }}, up to 50 per page)</span>
@@ -550,6 +478,7 @@ td.center { text-align: center; max-width: 60px; }
               <th>#</th>
               <th>Next Attempt</th>
               <th>Last Error</th>
+              <th>Payload</th>
               <th>Created At</th>
               <th>Updated At</th>
             </tr>
@@ -566,6 +495,7 @@ td.center { text-align: center; max-width: 60px; }
               data-attempts="{{ .Attempts }}"
               data-next="{{ fmtTimePtr .NextAttempt }}"
               data-error="{{ .LastError }}"
+              data-payload="{{ bytesToStr .Payload }}"
               data-created="{{ fmtTime .CreatedAt }}"
               data-updated="{{ fmtTime .UpdatedAt }}"
             >
@@ -578,6 +508,7 @@ td.center { text-align: center; max-width: 60px; }
               <td class="center">{{ .Attempts }}</td>
               <td>{{ fmtTimePtr .NextAttempt }}</td>
               <td class="err" title="{{ .LastError }}">{{ trunc .LastError 38 }}</td>
+              <td title="{{ bytesToStr .Payload }}">{{ trunc (bytesToStr .Payload) 38 }}</td>
               <td>{{ fmtTime .CreatedAt }}</td>
               <td>{{ fmtTime .UpdatedAt }}</td>
             </tr>
@@ -609,16 +540,10 @@ td.center { text-align: center; max-width: 60px; }
   <div id="statusbar">
     <span class="sb-cell" id="sb-status">Ready</span>
     <span class="sb-cell">delivery-dashboard v1.0</span>
+    <span class="statusbar-clock" id="clock">--:--:--</span>
   </div>
 
 </div><!-- /window -->
-
-<!-- Taskbar -->
-<div id="taskbar">
-  <button class="taskbar-start">&#9658; Start</button>
-  <div class="taskbar-win">&#128274; Delivery Dashboard</div>
-  <div class="taskbar-clock" id="clock">--:--:--</div>
-</div>
 
 <script>
 // Clock
@@ -630,18 +555,6 @@ function tick() {
     d.getSeconds().toString().padStart(2,'0');
 }
 tick(); setInterval(tick, 1000);
-
-// Auto-refresh
-var refreshTimer = null;
-function toggleRefresh(cb) {
-  if (cb.checked) {
-    refreshTimer = setTimeout(function(){ location.reload(); }, 30000);
-    document.getElementById('sb-status').textContent = 'Auto-refresh in 30s...';
-  } else {
-    clearTimeout(refreshTimer);
-    document.getElementById('sb-status').textContent = 'Ready';
-  }
-}
 
 // Row detail
 var selectedRow = null;
@@ -661,6 +574,7 @@ function showDetail(row) {
     ['Attempts',        d.attempts],
     ['Next Attempt',    d.next],
     ['Last Error',      d.error || '—'],
+    ['Payload',         d.payload || '—'],
     ['Created At',      d.created],
     ['Updated At',      d.updated],
   ];
