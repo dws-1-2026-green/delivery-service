@@ -99,7 +99,7 @@ func main() {
 		slog.Info("delivery store disabled (DATABASE_URL not set)")
 	}
 
-	httpClient := client.NewHTTPClient()
+	httpClient := client.NewHTTPClient(cfg.ConsumerWorkers)
 
 	sched := scheduler.New(deliveryStore, httpClient, backoffCfg, cfg.SchedulerWorkers)
 	go sched.Run(ctx)
