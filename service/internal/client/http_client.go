@@ -4,15 +4,21 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"time"
 )
 
 type HTTPClient struct {
 	Client *http.Client
 }
 
-func NewHTTPClient() *HTTPClient {
+func NewHTTPClient(workers int) *HTTPClient {
+	transport := &http.Transport{
+		MaxIdleConns:        workers,
+		MaxIdleConnsPerHost: workers,
+		IdleConnTimeout:     90 * time.Second,
+	}
 	return &HTTPClient{
-		Client: &http.Client{},
+		Client: &http.Client{Transport: transport},
 	}
 }
 

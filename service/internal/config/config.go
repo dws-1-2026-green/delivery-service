@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -21,8 +22,8 @@ type Config struct {
 }
 
 func LoadConfig() *Config {
-	schedulerWorkers := 10
-	consumerWorkers := 10
+	schedulerWorkers := getEnvInt("SCHEDULER_WORKERS", 10)
+	consumerWorkers := getEnvInt("CONSUMER_WORKERS", 10)
 	return &Config{
 		KafkaBrokers:       strings.Split(getEnv("KAFKA_BROKERS", "localhost:9092"), ","),
 		KafkaTopic:         getEnv("KAFKA_TOPIC", "delivery-events"),
@@ -44,4 +45,16 @@ func getEnv(key, defaultValue string) string {
 		return defaultValue
 	}
 	return value
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	n, err := strconv.Atoi(value)
+	if err != nil || n <= 0 {
+		return defaultValue
+	}
+	return n
 }
