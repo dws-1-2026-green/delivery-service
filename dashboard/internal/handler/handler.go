@@ -524,7 +524,7 @@ td.num    { text-align: right; max-width: 80px; }
 /* ── Filtered/total denominator ─────────────────── */
 .stat-denom {
   font-size: 15px;
-  color: #888888;
+  color: #444444;
   font-weight: normal;
 }
 
