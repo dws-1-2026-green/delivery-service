@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS deliveries (
     subscription_id TEXT        NOT NULL,
     destination_url TEXT        NOT NULL,
     method          TEXT        NOT NULL,
-    headers         JSONB       NOT NULL DEFAULT '{}',
+    headers         TEXT        NOT NULL DEFAULT '{}',
     payload         BYTEA       NOT NULL DEFAULT '',
     status          TEXT        NOT NULL DEFAULT 'pending',
     attempts        INT         NOT NULL DEFAULT 0,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS deliveries (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS headers      JSONB       NOT NULL DEFAULT '{}';
+ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS headers      TEXT        NOT NULL DEFAULT '{}';
 ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS payload      BYTEA       NOT NULL DEFAULT '';
 ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS next_attempt TIMESTAMPTZ;
 

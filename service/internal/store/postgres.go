@@ -62,7 +62,7 @@ func (s *pgxStore) Create(ctx context.Context, r DeliveryRecord) error {
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (id) DO NOTHING
 	`
-	_, err = s.q.Exec(ctx, q, r.ID, r.EventID, r.SubscriptionID, r.DestinationURL, r.Method, headersJSON, r.Payload, r.Status)
+	_, err = s.q.Exec(ctx, q, r.ID, r.EventID, r.SubscriptionID, r.DestinationURL, r.Method, string(headersJSON), r.Payload, r.Status)
 	return err
 }
 
