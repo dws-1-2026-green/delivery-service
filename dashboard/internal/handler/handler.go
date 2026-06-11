@@ -492,10 +492,10 @@ td.num    { text-align: right; max-width: 80px; }
 }
 #detail-pane .panel-body {
   font-family: "Courier New", monospace;
-  font-size: 13px;
+  font-size: 12px;
   display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 4px 12px;
+  grid-template-columns: 120px 1fr;
+  gap: 4px 8px;
 }
 #detail-pane .dk { font-weight: bold; color: #000080; white-space: nowrap; }
 #detail-pane .dv { word-break: break-all; }
@@ -874,17 +874,11 @@ td.num    { text-align: right; max-width: 80px; }
 
     {{ else }}
 
-    <!-- Detail pane (hidden by default) -->
-    <div class="panel" id="detail-pane">
-      <div class="panel-title">
-        Delivery Details
-        <button class="btn" onclick="closeDetail()" style="float:right;margin:-1px 0 0 0;padding:0 6px;font-size:10px;">&#10005; Close</button>
-      </div>
-      <div class="panel-body" id="detail-body"></div>
-    </div>
+    <!-- Table area: list left, detail right -->
+    <div style="display:flex;gap:8px;flex:1;min-height:0;">
 
     <!-- Flat list -->
-    <div class="panel" style="flex:1; display:flex; flex-direction:column; min-height:0;">
+    <div class="panel" style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;">
       <div class="panel-title">
         Deliveries
         {{ if ne .Status "" }}&nbsp;[{{ .Status }}]{{ end }}
@@ -965,6 +959,17 @@ td.num    { text-align: right; max-width: 80px; }
       </div>
     </div>
 
+    <!-- Detail pane (right side) -->
+    <div class="panel" id="detail-pane" style="flex:0 0 340px;overflow-y:auto;">
+      <div class="panel-title">
+        Delivery Details
+        <button class="btn" onclick="closeDetail()" style="float:right;margin:-1px 0 0 0;padding:0 6px;font-size:10px;">&#10005; Close</button>
+      </div>
+      <div class="panel-body" id="detail-body"></div>
+    </div>
+
+    </div><!-- /table area -->
+
     {{ end }}<!-- /GroupBy toggle -->
 
   </div><!-- /content -->
@@ -996,7 +1001,11 @@ var refreshTimer = setInterval(function() {
   countdown--;
   var ti = document.getElementById('title-refresh');
   if (ti) ti.textContent = countdown > 0 ? '↻ ' + countdown + 's' : '↻ …';
-  if (countdown <= 0) { clearInterval(refreshTimer); document.getElementById('filter-form').submit(); }
+  if (countdown <= 0) {
+    clearInterval(refreshTimer);
+    if (selectedRow) sessionStorage.setItem('_dlv', selectedRow.dataset.id);
+    document.getElementById('filter-form').submit();
+  }
 }, 1000);
 
 // Row detail (flat list only)
@@ -1036,6 +1045,15 @@ function closeDetail() {
   document.getElementById('detail-pane').style.display = 'none';
   if (selectedRow) { selectedRow.classList.remove('selected'); selectedRow = null; }
   document.getElementById('sb-status').textContent = 'Ready';
+}
+
+// Restore selected row after auto-refresh
+var _savedId = sessionStorage.getItem('_dlv');
+if (_savedId) {
+  sessionStorage.removeItem('_dlv');
+  document.querySelectorAll('#tbody tr').forEach(function(row) {
+    if (row.dataset.id === _savedId) { showDetail(row); }
+  });
 }
 
 function esc(s) {
