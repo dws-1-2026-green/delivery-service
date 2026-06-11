@@ -49,9 +49,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	stats, _ := h.store.StatusStats(ctx)
+	retryDist, _ := h.store.RetryDistribution(ctx)
 
 	data := map[string]any{
 		"Stats":       stats,
+		"RetryDist":   retryDist,
 		"Status":      status,
 		"EventID":     eventID,
 		"SubID":       subscriptionID,
@@ -106,6 +108,18 @@ var funcMap = template.FuncMap{
 	},
 	"add": func(a, b int) int { return a + b },
 	"sub": func(a, b int) int { return a - b },
+	"attClass": func(n int) string {
+		switch {
+		case n == 0:
+			return "att-0"
+		case n == 1:
+			return "att-1"
+		case n == 2:
+			return "att-2"
+		default:
+			return "att-3p"
+		}
+	},
 	"statCount": func(stats map[store.Status]int, s store.Status) int {
 		if stats == nil {
 			return 0
@@ -461,6 +475,74 @@ td.num    { text-align: right; max-width: 80px; }
   font-family: "Courier New", monospace;
   font-size: 13px;
 }
+
+/* ── Live indicator ──────────────────────────────── */
+.live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #90ff90;
+}
+.live-dot {
+  width: 8px; height: 8px;
+  background: #00ff00;
+  border-radius: 50%;
+  box-shadow: 0 0 4px #00ff00;
+  animation: liveblink 1.2s ease-in-out infinite;
+}
+@keyframes liveblink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.15; }
+}
+
+/* ── Retry distribution chart ────────────────────── */
+.retry-chart { display: flex; flex-direction: column; gap: 5px; }
+.rc-row { display: flex; align-items: center; gap: 6px; }
+.rc-label {
+  font-family: "Courier New", monospace;
+  font-weight: bold;
+  font-size: 12px;
+  width: 26px;
+  text-align: right;
+}
+.rc-bar-wrap {
+  flex: 1;
+  background: #d8d8d8;
+  border-top: 1px solid #808080;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #ffffff;
+  border-bottom: 1px solid #ffffff;
+  height: 13px;
+  min-width: 80px;
+}
+.rc-bar { height: 100%; min-width: 2px; }
+.rc-0  { background: #228B22; }
+.rc-1  { background: #DAA520; }
+.rc-2  { background: #CC6600; }
+.rc-3p { background: #8B0000; }
+.rc-count {
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  width: 52px;
+  color: #444;
+}
+
+/* ── Attempt badges ──────────────────────────────── */
+.att-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  font-weight: bold;
+  font-size: 12px;
+  font-family: "Courier New", monospace;
+  border: 1px solid;
+}
+.att-0  { background: #e8ffe8; color: #006600; border-color: #008800; }
+.att-1  { background: #ffffd0; color: #664400; border-color: #aaaa00; }
+.att-2  { background: #ffe8cc; color: #884400; border-color: #cc6600; }
+.att-3p { background: #ffe8e8; color: #880000; border-color: #cc0000; }
 </style>
 </head>
 <body>
@@ -471,6 +553,7 @@ td.num    { text-align: right; max-width: 80px; }
   <div id="titlebar">
     <span class="title-icon">&#128274;</span>
     <span class="title-text">Delivery Dashboard — Webhook Engine</span>
+    <span class="live-indicator"><span class="live-dot"></span>LIVE</span>
   </div>
 
   <!-- Content -->
@@ -499,6 +582,19 @@ td.num    { text-align: right; max-width: 80px; }
           </div>
           <div class="stat-box" style="min-width:auto; padding: 6px 12px; display:flex; flex-direction:column; justify-content:center;">
             <button class="btn" onclick="location.reload()">&#8635; Refresh</button>
+          </div>
+          <div style="width:1px;background:#808080;margin:0 6px;align-self:stretch;"></div>
+          <div class="stat-box" style="min-width:180px;">
+            <div class="stat-label" style="margin-bottom:6px;">Retry Distribution</div>
+            <div class="retry-chart">
+              {{ range .RetryDist }}
+              <div class="rc-row">
+                <span class="rc-label">{{ .Label }}</span>
+                <div class="rc-bar-wrap"><div class="rc-bar {{ .BarClass }}" style="width:{{ .Pct }}%"></div></div>
+                <span class="rc-count">{{ .Count }}</span>
+              </div>
+              {{ end }}
+            </div>
           </div>
         </div>
       </div>
@@ -659,7 +755,7 @@ td.num    { text-align: right; max-width: 80px; }
               <td class="url" title="{{ .DestinationURL }}">{{ trunc .DestinationURL 38 }}</td>
               <td class="center">{{ .Method }}</td>
               <td class="center"><span class="badge badge-{{ statusClass .Status }}">{{ .Status }}</span></td>
-              <td class="center">{{ .Attempts }}</td>
+              <td class="center"><span class="att-badge {{ attClass .Attempts }}">{{ .Attempts }}</span></td>
               <td>{{ fmtTimePtr .NextAttempt }}</td>
               <td class="err" title="{{ .LastError }}">{{ trunc .LastError 38 }}</td>
               <td title="{{ bytesToStr .Payload }}">{{ trunc (bytesToStr .Payload) 38 }}</td>
@@ -696,6 +792,7 @@ td.num    { text-align: right; max-width: 80px; }
   <div id="statusbar">
     <span class="sb-cell" id="sb-status">Ready</span>
     <span class="sb-cell">delivery-dashboard v1.0</span>
+    <span class="sb-cell" id="sb-refresh">Auto-refresh: 10s</span>
     <span class="statusbar-clock" id="clock">--:--:--</span>
   </div>
 
@@ -711,6 +808,16 @@ function tick() {
     d.getSeconds().toString().padStart(2,'0');
 }
 tick(); setInterval(tick, 1000);
+
+// Auto-refresh countdown
+var REFRESH_SECS = 10;
+var countdown = REFRESH_SECS;
+var refreshTimer = setInterval(function() {
+  countdown--;
+  var el = document.getElementById('sb-refresh');
+  if (el) el.textContent = countdown > 0 ? 'Auto-refresh: ' + countdown + 's' : 'Refreshing…';
+  if (countdown <= 0) { clearInterval(refreshTimer); location.reload(); }
+}, 1000);
 
 // Row detail (flat list only)
 var selectedRow = null;

@@ -97,6 +97,53 @@ func (s *postgresStore) GroupDeliveries(ctx context.Context, field, status, even
 	return result, rows.Err()
 }
 
+func (s *postgresStore) RetryDistribution(ctx context.Context) ([]RetryBucket, error) {
+	const q = `
+		SELECT LEAST(attempts, 3) AS bucket, COUNT(*) AS cnt
+		FROM deliveries
+		GROUP BY bucket
+		ORDER BY bucket
+	`
+	rows, err := s.pool.Query(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := map[int]int{0: 0, 1: 0, 2: 0, 3: 0}
+	for rows.Next() {
+		var bucket, cnt int
+		if err := rows.Scan(&bucket, &cnt); err != nil {
+			return nil, err
+		}
+		counts[bucket] = cnt
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	maxCount := 1
+	for _, v := range counts {
+		if v > maxCount {
+			maxCount = v
+		}
+	}
+
+	labels := []string{"0", "1", "2", "3+"}
+	classes := []string{"rc-0", "rc-1", "rc-2", "rc-3p"}
+	result := make([]RetryBucket, 4)
+	for i := 0; i < 4; i++ {
+		cnt := counts[i]
+		result[i] = RetryBucket{
+			Label:    labels[i],
+			Count:    cnt,
+			Pct:      cnt * 100 / maxCount,
+			BarClass: classes[i],
+		}
+	}
+	return result, nil
+}
+
 func (s *postgresStore) StatusStats(ctx context.Context) (map[Status]int, error) {
 	rows, err := s.pool.Query(ctx, `SELECT status, COUNT(*) FROM deliveries GROUP BY status`)
 	if err != nil {

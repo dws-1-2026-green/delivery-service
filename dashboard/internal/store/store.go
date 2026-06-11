@@ -36,8 +36,16 @@ type GroupRow struct {
 	Exhausted int
 }
 
+type RetryBucket struct {
+	Label    string
+	Count    int
+	Pct      int
+	BarClass string
+}
+
 type Store interface {
 	ListDeliveries(ctx context.Context, status, eventID, subscriptionID, destinationURL, attemptsOp string, attemptsVal, limit, offset int) ([]DeliveryRecord, error)
 	GroupDeliveries(ctx context.Context, field, status, eventID, subscriptionID, destinationURL string) ([]GroupRow, error)
 	StatusStats(ctx context.Context) (map[Status]int, error)
+	RetryDistribution(ctx context.Context) ([]RetryBucket, error)
 }
