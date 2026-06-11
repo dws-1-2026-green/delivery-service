@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -129,6 +130,42 @@ func (s *postgresStore) FilteredStats(ctx context.Context, status, eventID, subs
 		stats[s] = cnt
 	}
 	return stats, rows.Err()
+}
+
+func (s *postgresStore) ThroughputSeries(ctx context.Context) ([]ThroughputPoint, error) {
+	const q = `
+		SELECT DATE_TRUNC('minute', created_at) AS minute, COUNT(*) AS cnt
+		FROM deliveries
+		WHERE created_at > NOW() - INTERVAL '60 minutes'
+		GROUP BY minute
+		ORDER BY minute
+	`
+	rows, err := s.pool.Query(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	data := make(map[time.Time]int)
+	for rows.Next() {
+		var minute time.Time
+		var cnt int
+		if err := rows.Scan(&minute, &cnt); err != nil {
+			return nil, err
+		}
+		data[minute.UTC().Truncate(time.Minute)] = cnt
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC().Truncate(time.Minute)
+	result := make([]ThroughputPoint, 60)
+	for i := 0; i < 60; i++ {
+		t := now.Add(time.Duration(i-59) * time.Minute)
+		result[i] = ThroughputPoint{Minute: t, Count: data[t]}
+	}
+	return result, nil
 }
 
 func (s *postgresStore) RetryDistribution(ctx context.Context) ([]RetryBucket, error) {

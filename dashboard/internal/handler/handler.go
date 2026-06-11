@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jbisss/webhook-manager/delivery-dashboard/internal/store"
@@ -50,6 +51,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	stats, _ := h.store.StatusStats(ctx)
 	retryDist, _ := h.store.RetryDistribution(ctx)
+	throughput, _ := h.store.ThroughputSeries(ctx)
 	hasFilter := status != "" || eventID != "" || subscriptionID != "" || destinationURL != "" || attemptsOp != ""
 	var filteredStats map[store.Status]int
 	if hasFilter {
@@ -58,6 +60,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	data := map[string]any{
 		"Stats":         stats,
+		"Throughput":    throughput,
 		"FilteredStats": filteredStats,
 		"HasFilter":     hasFilter,
 		"RetryDist":     retryDist,
@@ -115,6 +118,58 @@ var funcMap = template.FuncMap{
 	},
 	"add": func(a, b int) int { return a + b },
 	"sub": func(a, b int) int { return a - b },
+	"sparklinePoints": func(points []store.ThroughputPoint, w, h int) template.HTML {
+		if len(points) < 2 {
+			return ""
+		}
+		maxC := 1
+		for _, p := range points {
+			if p.Count > maxC {
+				maxC = p.Count
+			}
+		}
+		n := len(points)
+		var sb strings.Builder
+		for i, p := range points {
+			x := float64(i) / float64(n-1) * float64(w)
+			y := float64(h) - float64(p.Count)/float64(maxC)*float64(h)
+			if i > 0 {
+				sb.WriteByte(' ')
+			}
+			sb.WriteString(fmt.Sprintf("%.1f,%.1f", x, y))
+		}
+		return template.HTML(sb.String())
+	},
+	"sparklineArea": func(points []store.ThroughputPoint, w, h int) template.HTML {
+		if len(points) < 2 {
+			return ""
+		}
+		maxC := 1
+		for _, p := range points {
+			if p.Count > maxC {
+				maxC = p.Count
+			}
+		}
+		n := len(points)
+		var sb strings.Builder
+		sb.WriteString(fmt.Sprintf("0,%d", h))
+		for i, p := range points {
+			x := float64(i) / float64(n-1) * float64(w)
+			y := float64(h) - float64(p.Count)/float64(maxC)*float64(h)
+			sb.WriteString(fmt.Sprintf(" %.1f,%.1f", x, y))
+		}
+		sb.WriteString(fmt.Sprintf(" %d,%d", w, h))
+		return template.HTML(sb.String())
+	},
+	"sparklineMax": func(points []store.ThroughputPoint) int {
+		maxC := 0
+		for _, p := range points {
+			if p.Count > maxC {
+				maxC = p.Count
+			}
+		}
+		return maxC
+	},
 	"successPct": func(stats map[store.Status]int) string {
 		if stats == nil {
 			return "—"
@@ -528,6 +583,34 @@ td.num    { text-align: right; max-width: 80px; }
   font-weight: normal;
 }
 
+/* ── Sparkline ───────────────────────────────────── */
+.sparkline-wrap {
+  position: relative;
+  background: #ffffff;
+  border-top: 1px solid #808080;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #ffffff;
+  border-bottom: 1px solid #ffffff;
+  padding: 4px 6px 2px;
+}
+.sparkline-labels {
+  display: flex;
+  justify-content: space-between;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  color: #666;
+  margin-top: 2px;
+}
+.sparkline-max {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  font-size: 10px;
+  font-family: "Courier New", monospace;
+  color: #000080;
+  font-weight: bold;
+}
+
 /* ── Live indicator ──────────────────────────────── */
 .live-indicator {
   display: flex;
@@ -668,6 +751,33 @@ td.num    { text-align: right; max-width: 80px; }
           </div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- Throughput sparkline -->
+    <div class="panel">
+      <div class="panel-title">Throughput &nbsp;<span style="font-weight:normal;font-size:11px;">deliveries created / minute — last 60 min</span></div>
+      <div class="panel-body" style="padding:6px 10px;">
+        {{ if .Throughput }}
+        <div class="sparkline-wrap">
+          <span class="sparkline-max">peak: {{ sparklineMax .Throughput }}/min</span>
+          <svg viewBox="0 0 600 55" preserveAspectRatio="none" style="width:100%;height:55px;display:block;">
+            <line x1="0" y1="18" x2="600" y2="18" stroke="#eeeeee" stroke-width="1"/>
+            <line x1="0" y1="36" x2="600" y2="36" stroke="#eeeeee" stroke-width="1"/>
+            <polygon points="{{ sparklineArea .Throughput 600 53 }}" fill="#000080" fill-opacity="0.10"/>
+            <polyline points="{{ sparklinePoints .Throughput 600 53 }}" fill="none" stroke="#000080" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+          <div class="sparkline-labels">
+            <span>−60 min</span>
+            <span>−45 min</span>
+            <span>−30 min</span>
+            <span>−15 min</span>
+            <span>now</span>
+          </div>
+        </div>
+        {{ else }}
+        <div class="no-data">[ no data for last 60 minutes ]</div>
+        {{ end }}
       </div>
     </div>
 

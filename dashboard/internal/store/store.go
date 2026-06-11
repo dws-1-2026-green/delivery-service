@@ -43,10 +43,16 @@ type RetryBucket struct {
 	BarClass string
 }
 
+type ThroughputPoint struct {
+	Minute time.Time
+	Count  int
+}
+
 type Store interface {
 	ListDeliveries(ctx context.Context, status, eventID, subscriptionID, destinationURL, attemptsOp string, attemptsVal, limit, offset int) ([]DeliveryRecord, error)
 	GroupDeliveries(ctx context.Context, field, status, eventID, subscriptionID, destinationURL string) ([]GroupRow, error)
 	StatusStats(ctx context.Context) (map[Status]int, error)
 	FilteredStats(ctx context.Context, status, eventID, subscriptionID, destinationURL, attemptsOp string, attemptsVal int) (map[Status]int, error)
 	RetryDistribution(ctx context.Context) ([]RetryBucket, error)
+	ThroughputSeries(ctx context.Context) ([]ThroughputPoint, error)
 }
