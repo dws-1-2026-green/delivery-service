@@ -97,6 +97,40 @@ func (s *postgresStore) GroupDeliveries(ctx context.Context, field, status, even
 	return result, rows.Err()
 }
 
+func (s *postgresStore) FilteredStats(ctx context.Context, status, eventID, subscriptionID, destinationURL, attemptsOp string, attemptsVal int) (map[Status]int, error) {
+	attemptsClause := ""
+	if attemptsOp == ">" || attemptsOp == "<" || attemptsOp == "=" {
+		attemptsClause = fmt.Sprintf("AND attempts %s %d", attemptsOp, attemptsVal)
+	}
+	q := fmt.Sprintf(`
+		SELECT status, COUNT(*)
+		FROM deliveries
+		WHERE ($1 = '' OR status = $1)
+		  AND ($2 = '' OR event_id = $2)
+		  AND ($3 = '' OR subscription_id = $3)
+		  AND ($4 = '' OR destination_url = $4)
+		  %s
+		GROUP BY status
+	`, attemptsClause)
+
+	rows, err := s.pool.Query(ctx, q, status, eventID, subscriptionID, destinationURL)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	stats := map[Status]int{StatusPending: 0, StatusSuccess: 0, StatusExhausted: 0}
+	for rows.Next() {
+		var s Status
+		var cnt int
+		if err := rows.Scan(&s, &cnt); err != nil {
+			return nil, err
+		}
+		stats[s] = cnt
+	}
+	return stats, rows.Err()
+}
+
 func (s *postgresStore) RetryDistribution(ctx context.Context) ([]RetryBucket, error) {
 	const q = `
 		SELECT LEAST(attempts, 3) AS bucket, COUNT(*) AS cnt

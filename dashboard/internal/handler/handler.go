@@ -50,22 +50,29 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	stats, _ := h.store.StatusStats(ctx)
 	retryDist, _ := h.store.RetryDistribution(ctx)
+	hasFilter := status != "" || eventID != "" || subscriptionID != "" || destinationURL != "" || attemptsOp != ""
+	var filteredStats map[store.Status]int
+	if hasFilter {
+		filteredStats, _ = h.store.FilteredStats(ctx, status, eventID, subscriptionID, destinationURL, attemptsOp, attemptsVal)
+	}
 
 	data := map[string]any{
-		"Stats":       stats,
-		"RetryDist":   retryDist,
-		"Status":      status,
-		"EventID":     eventID,
-		"SubID":       subscriptionID,
-		"DestURL":     destinationURL,
-		"GroupBy":     groupBy,
-		"AttemptsOp":  attemptsOp,
-		"AttemptsVal": attemptsVal,
-		"Page":        page,
-		"HasPrev":     false,
-		"HasNext":     false,
-		"Records":     nil,
-		"GroupRows":   nil,
+		"Stats":         stats,
+		"FilteredStats": filteredStats,
+		"HasFilter":     hasFilter,
+		"RetryDist":     retryDist,
+		"Status":        status,
+		"EventID":       eventID,
+		"SubID":         subscriptionID,
+		"DestURL":       destinationURL,
+		"GroupBy":       groupBy,
+		"AttemptsOp":    attemptsOp,
+		"AttemptsVal":   attemptsVal,
+		"Page":          page,
+		"HasPrev":       false,
+		"HasNext":       false,
+		"Records":       nil,
+		"GroupRows":     nil,
 	}
 
 	if groupBy != "" {
@@ -108,6 +115,19 @@ var funcMap = template.FuncMap{
 	},
 	"add": func(a, b int) int { return a + b },
 	"sub": func(a, b int) int { return a - b },
+	"successPct": func(stats map[store.Status]int) string {
+		if stats == nil {
+			return "—"
+		}
+		t := 0
+		for _, v := range stats {
+			t += v
+		}
+		if t == 0 {
+			return "—"
+		}
+		return fmt.Sprintf("%.1f%%", float64(stats[store.StatusSuccess])*100/float64(t))
+	},
 	"attClass": func(n int) string {
 		switch {
 		case n == 0:
@@ -476,6 +496,28 @@ td.num    { text-align: right; max-width: 80px; }
   font-size: 13px;
 }
 
+/* ── Stats sections ─────────────────────────────── */
+.stats-sections { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.stats-section-label {
+  font-size: 10px; font-weight: bold; color: #000080;
+  letter-spacing: 1px; text-transform: uppercase;
+  border-bottom: 1px solid #808080; padding-bottom: 2px; margin-bottom: 4px;
+}
+.stats-right { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; justify-content: space-between; }
+.stat-pct { font-size: 11px; color: #006600; font-family: "Courier New", monospace; margin-top: 2px; }
+.stat-pct-filtered { color: #004488; }
+
+/* ── Refresh countdown in titlebar ──────────────── */
+.refresh-counter {
+  font-size: 12px;
+  font-family: "Courier New", monospace;
+  color: #c0e0ff;
+  background: rgba(0,0,0,0.25);
+  padding: 2px 8px;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+}
+
 /* ── Live indicator ──────────────────────────────── */
 .live-indicator {
   display: flex;
@@ -554,6 +596,7 @@ td.num    { text-align: right; max-width: 80px; }
     <span class="title-icon">&#128274;</span>
     <span class="title-text">Delivery Dashboard — Webhook Engine</span>
     <span class="live-indicator"><span class="live-dot"></span>LIVE</span>
+    <span class="refresh-counter" id="title-refresh">↻ 10s</span>
   </div>
 
   <!-- Content -->
@@ -562,28 +605,66 @@ td.num    { text-align: right; max-width: 80px; }
     <!-- Stats -->
     <div class="panel">
       <div class="panel-title">System Statistics</div>
-      <div class="panel-body">
-        <div class="stats-row">
-          <div class="stat-box stat-total">
-            <div class="stat-label">Total</div>
-            <div class="stat-val">{{ total .Stats }}</div>
+      <div class="panel-body" style="display:flex;gap:12px;align-items:flex-start;">
+
+        <!-- Left: All + Filtered stats -->
+        <div class="stats-sections">
+
+          <!-- All records -->
+          <div>
+            <div class="stats-section-label">All records</div>
+            <div class="stats-row">
+              <div class="stat-box stat-total">
+                <div class="stat-label">Total</div>
+                <div class="stat-val">{{ total .Stats }}</div>
+              </div>
+              <div class="stat-box stat-pending">
+                <div class="stat-label">Pending</div>
+                <div class="stat-val">{{ statCount .Stats "pending" }}</div>
+              </div>
+              <div class="stat-box stat-success">
+                <div class="stat-label">Success</div>
+                <div class="stat-val">{{ statCount .Stats "success" }}</div>
+                <div class="stat-pct">{{ successPct .Stats }}</div>
+              </div>
+              <div class="stat-box stat-exhausted">
+                <div class="stat-label">Exhausted</div>
+                <div class="stat-val">{{ statCount .Stats "exhausted" }}</div>
+              </div>
+            </div>
           </div>
-          <div class="stat-box stat-pending">
-            <div class="stat-label">Pending</div>
-            <div class="stat-val">{{ statCount .Stats "pending" }}</div>
+
+          <!-- Filtered records (only when filter active) -->
+          {{ if .HasFilter }}
+          <div>
+            <div class="stats-section-label" style="color:#004488;">Filtered</div>
+            <div class="stats-row">
+              <div class="stat-box stat-total">
+                <div class="stat-label">Total</div>
+                <div class="stat-val">{{ total .FilteredStats }}</div>
+              </div>
+              <div class="stat-box stat-pending">
+                <div class="stat-label">Pending</div>
+                <div class="stat-val">{{ statCount .FilteredStats "pending" }}</div>
+              </div>
+              <div class="stat-box stat-success">
+                <div class="stat-label">Success</div>
+                <div class="stat-val">{{ statCount .FilteredStats "success" }}</div>
+                <div class="stat-pct stat-pct-filtered">{{ successPct .FilteredStats }}</div>
+              </div>
+              <div class="stat-box stat-exhausted">
+                <div class="stat-label">Exhausted</div>
+                <div class="stat-val">{{ statCount .FilteredStats "exhausted" }}</div>
+              </div>
+            </div>
           </div>
-          <div class="stat-box stat-success">
-            <div class="stat-label">Success</div>
-            <div class="stat-val">{{ statCount .Stats "success" }}</div>
-          </div>
-          <div class="stat-box stat-exhausted">
-            <div class="stat-label">Exhausted</div>
-            <div class="stat-val">{{ statCount .Stats "exhausted" }}</div>
-          </div>
-          <div class="stat-box" style="min-width:auto; padding: 6px 12px; display:flex; flex-direction:column; justify-content:center;">
-            <button class="btn" onclick="location.reload()">&#8635; Refresh</button>
-          </div>
-          <div style="width:1px;background:#808080;margin:0 6px;align-self:stretch;"></div>
+          {{ end }}
+
+        </div>
+
+        <!-- Right: separator + retry dist + refresh -->
+        <div style="display:flex;gap:10px;align-items:flex-start;margin-left:auto;">
+          <div style="width:1px;background:#808080;align-self:stretch;"></div>
           <div class="stat-box" style="min-width:180px;">
             <div class="stat-label" style="margin-bottom:6px;">Retry Distribution</div>
             <div class="retry-chart">
@@ -596,7 +677,11 @@ td.num    { text-align: right; max-width: 80px; }
               {{ end }}
             </div>
           </div>
+          <div style="display:flex;flex-direction:column;justify-content:center;">
+            <button class="btn" onclick="location.reload()">&#8635; Refresh</button>
+          </div>
         </div>
+
       </div>
     </div>
 
@@ -814,8 +899,11 @@ var REFRESH_SECS = 10;
 var countdown = REFRESH_SECS;
 var refreshTimer = setInterval(function() {
   countdown--;
-  var el = document.getElementById('sb-refresh');
-  if (el) el.textContent = countdown > 0 ? 'Auto-refresh: ' + countdown + 's' : 'Refreshing…';
+  var sb = document.getElementById('sb-refresh');
+  var ti = document.getElementById('title-refresh');
+  var label = countdown > 0 ? '↻ ' + countdown + 's' : '↻ …';
+  if (sb) sb.textContent = 'Auto-refresh: ' + (countdown > 0 ? countdown + 's' : '…');
+  if (ti) ti.textContent = label;
   if (countdown <= 0) { clearInterval(refreshTimer); location.reload(); }
 }, 1000);
 
