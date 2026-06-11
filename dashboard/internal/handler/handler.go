@@ -664,7 +664,7 @@ td.num    { text-align: right; max-width: 80px; }
             </div>
           </div>
           <div style="display:flex;flex-direction:column;justify-content:center;">
-            <button class="btn" onclick="location.reload()">&#8635; Refresh</button>
+            <button class="btn" onclick="document.getElementById('filter-form').submit()">&#8635; Refresh</button>
           </div>
         </div>
 
@@ -675,7 +675,7 @@ td.num    { text-align: right; max-width: 80px; }
     <div class="panel">
       <div class="panel-title">Filter &amp; Group By</div>
       <div class="panel-body">
-        <form method="get" action="/">
+        <form id="filter-form" method="get" action="/">
           <div class="filter-grid">
             <label>Status:</label>
             <select name="status">
@@ -886,7 +886,7 @@ var refreshTimer = setInterval(function() {
   countdown--;
   var ti = document.getElementById('title-refresh');
   if (ti) ti.textContent = countdown > 0 ? '↻ ' + countdown + 's' : '↻ …';
-  if (countdown <= 0) { clearInterval(refreshTimer); location.reload(); }
+  if (countdown <= 0) { clearInterval(refreshTimer); document.getElementById('filter-form').submit(); }
 }, 1000);
 
 // Row detail (flat list only)
