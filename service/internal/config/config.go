@@ -30,9 +30,9 @@ func LoadConfig() *Config {
 		KafkaGroupID:       getEnv("KAFKA_GROUP_ID", "delivery-group"),
 		MetricsAddr:        getEnv("METRICS_ADDR", ":9095"),
 		DatabaseURL:        getEnv("DATABASE_URL", ""),
-		BackoffBaseDelay:   5 * time.Second,
-		BackoffMaxDelay:    24 * time.Hour,
-		BackoffMaxAttempts: 10,
+		BackoffBaseDelay:   getEnvDuration("BACKOFF_BASE_DELAY", 5*time.Second),
+		BackoffMaxDelay:    getEnvDuration("BACKOFF_MAX_DELAY", 24*time.Hour),
+		BackoffMaxAttempts: getEnvInt("BACKOFF_MAX_ATTEMPTS", 10),
 		SchedulerWorkers:   schedulerWorkers,
 		ConsumerWorkers:    consumerWorkers,
 		DBMaxConns:         schedulerWorkers + consumerWorkers + 2,
@@ -45,6 +45,18 @@ func getEnv(key, defaultValue string) string {
 		return defaultValue
 	}
 	return value
+}
+
+func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	d, err := time.ParseDuration(value)
+	if err != nil || d <= 0 {
+		return defaultValue
+	}
+	return d
 }
 
 func getEnvInt(key string, defaultValue int) int {

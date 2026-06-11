@@ -39,10 +39,6 @@ func (c *HTTPClient) Send(ctx context.Context, method, url string, headers map[s
 		req.Header.Set(k, v)
 	}
 
-	if method != http.MethodGet && req.Header.Get("Content-Type") == "" {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
 	resp, err := c.Client.Do(req)
 	if err != nil {
 		return err
