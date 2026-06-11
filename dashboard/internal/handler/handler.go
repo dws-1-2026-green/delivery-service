@@ -509,13 +509,23 @@ td.num    { text-align: right; max-width: 80px; }
 
 /* ── Refresh countdown in titlebar ──────────────── */
 .refresh-counter {
-  font-size: 12px;
+  font-size: 15px;
+  font-weight: bold;
   font-family: "Courier New", monospace;
-  color: #c0e0ff;
-  background: rgba(0,0,0,0.25);
-  padding: 2px 8px;
+  color: #ffffff;
+  background: rgba(0,0,0,0.35);
+  padding: 3px 12px;
   border-radius: 2px;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
+  min-width: 56px;
+  text-align: center;
+}
+
+/* ── Filtered/total denominator ─────────────────── */
+.stat-denom {
+  font-size: 15px;
+  color: #888888;
+  font-weight: normal;
 }
 
 /* ── Live indicator ──────────────────────────────── */
@@ -607,59 +617,35 @@ td.num    { text-align: right; max-width: 80px; }
       <div class="panel-title">System Statistics</div>
       <div class="panel-body" style="display:flex;gap:12px;align-items:flex-start;">
 
-        <!-- Left: All + Filtered stats -->
+        <!-- Stats boxes -->
         <div class="stats-sections">
-
-          <!-- All records -->
-          <div>
-            <div class="stats-section-label">All records</div>
-            <div class="stats-row">
-              <div class="stat-box stat-total">
-                <div class="stat-label">Total</div>
-                <div class="stat-val">{{ total .Stats }}</div>
+          <div class="stats-row">
+            <div class="stat-box stat-total">
+              <div class="stat-label">Total</div>
+              <div class="stat-val">
+                {{ if .HasFilter }}{{ total .FilteredStats }}<span class="stat-denom">/{{ total .Stats }}</span>{{ else }}{{ total .Stats }}{{ end }}
               </div>
-              <div class="stat-box stat-pending">
-                <div class="stat-label">Pending</div>
-                <div class="stat-val">{{ statCount .Stats "pending" }}</div>
+            </div>
+            <div class="stat-box stat-pending">
+              <div class="stat-label">Pending</div>
+              <div class="stat-val">
+                {{ if .HasFilter }}{{ statCount .FilteredStats "pending" }}<span class="stat-denom">/{{ statCount .Stats "pending" }}</span>{{ else }}{{ statCount .Stats "pending" }}{{ end }}
               </div>
-              <div class="stat-box stat-success">
-                <div class="stat-label">Success</div>
-                <div class="stat-val">{{ statCount .Stats "success" }}</div>
-                <div class="stat-pct">{{ successPct .Stats }}</div>
+            </div>
+            <div class="stat-box stat-success">
+              <div class="stat-label">Success</div>
+              <div class="stat-val">
+                {{ if .HasFilter }}{{ statCount .FilteredStats "success" }}<span class="stat-denom">/{{ statCount .Stats "success" }}</span>{{ else }}{{ statCount .Stats "success" }}{{ end }}
               </div>
-              <div class="stat-box stat-exhausted">
-                <div class="stat-label">Exhausted</div>
-                <div class="stat-val">{{ statCount .Stats "exhausted" }}</div>
+              <div class="stat-pct">{{ if .HasFilter }}{{ successPct .FilteredStats }}{{ else }}{{ successPct .Stats }}{{ end }}</div>
+            </div>
+            <div class="stat-box stat-exhausted">
+              <div class="stat-label">Exhausted</div>
+              <div class="stat-val">
+                {{ if .HasFilter }}{{ statCount .FilteredStats "exhausted" }}<span class="stat-denom">/{{ statCount .Stats "exhausted" }}</span>{{ else }}{{ statCount .Stats "exhausted" }}{{ end }}
               </div>
             </div>
           </div>
-
-          <!-- Filtered records (only when filter active) -->
-          {{ if .HasFilter }}
-          <div>
-            <div class="stats-section-label" style="color:#004488;">Filtered</div>
-            <div class="stats-row">
-              <div class="stat-box stat-total">
-                <div class="stat-label">Total</div>
-                <div class="stat-val">{{ total .FilteredStats }}</div>
-              </div>
-              <div class="stat-box stat-pending">
-                <div class="stat-label">Pending</div>
-                <div class="stat-val">{{ statCount .FilteredStats "pending" }}</div>
-              </div>
-              <div class="stat-box stat-success">
-                <div class="stat-label">Success</div>
-                <div class="stat-val">{{ statCount .FilteredStats "success" }}</div>
-                <div class="stat-pct stat-pct-filtered">{{ successPct .FilteredStats }}</div>
-              </div>
-              <div class="stat-box stat-exhausted">
-                <div class="stat-label">Exhausted</div>
-                <div class="stat-val">{{ statCount .FilteredStats "exhausted" }}</div>
-              </div>
-            </div>
-          </div>
-          {{ end }}
-
         </div>
 
         <!-- Right: separator + retry dist + refresh -->
@@ -877,7 +863,6 @@ td.num    { text-align: right; max-width: 80px; }
   <div id="statusbar">
     <span class="sb-cell" id="sb-status">Ready</span>
     <span class="sb-cell">delivery-dashboard v1.0</span>
-    <span class="sb-cell" id="sb-refresh">Auto-refresh: 10s</span>
     <span class="statusbar-clock" id="clock">--:--:--</span>
   </div>
 
@@ -899,11 +884,8 @@ var REFRESH_SECS = 10;
 var countdown = REFRESH_SECS;
 var refreshTimer = setInterval(function() {
   countdown--;
-  var sb = document.getElementById('sb-refresh');
   var ti = document.getElementById('title-refresh');
-  var label = countdown > 0 ? '↻ ' + countdown + 's' : '↻ …';
-  if (sb) sb.textContent = 'Auto-refresh: ' + (countdown > 0 ? countdown + 's' : '…');
-  if (ti) ti.textContent = label;
+  if (ti) ti.textContent = countdown > 0 ? '↻ ' + countdown + 's' : '↻ …';
   if (countdown <= 0) { clearInterval(refreshTimer); location.reload(); }
 }, 1000);
 
