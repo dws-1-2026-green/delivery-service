@@ -15,8 +15,12 @@ func NewPostgresStore(pool *pgxpool.Pool) Store {
 	return &postgresStore{pool: pool}
 }
 
-func (s *postgresStore) ListDeliveries(ctx context.Context, status, eventID, subscriptionID, destinationURL string, limit, offset int) ([]DeliveryRecord, error) {
-	const q = `
+func (s *postgresStore) ListDeliveries(ctx context.Context, status, eventID, subscriptionID, destinationURL, attemptsOp string, attemptsVal, limit, offset int) ([]DeliveryRecord, error) {
+	attemptsClause := ""
+	if attemptsOp == ">" || attemptsOp == "<" || attemptsOp == "=" {
+		attemptsClause = fmt.Sprintf("AND attempts %s %d", attemptsOp, attemptsVal)
+	}
+	q := fmt.Sprintf(`
 		SELECT id, event_id, subscription_id, destination_url, method, status,
 		       attempts, next_attempt, last_error, payload, created_at, updated_at
 		FROM deliveries
@@ -24,9 +28,10 @@ func (s *postgresStore) ListDeliveries(ctx context.Context, status, eventID, sub
 		  AND ($2 = '' OR event_id = $2)
 		  AND ($3 = '' OR subscription_id = $3)
 		  AND ($4 = '' OR destination_url = $4)
+		  %s
 		ORDER BY created_at DESC
 		LIMIT $5 OFFSET $6
-	`
+	`, attemptsClause)
 	rows, err := s.pool.Query(ctx, q, status, eventID, subscriptionID, destinationURL, limit, offset)
 	if err != nil {
 		return nil, err

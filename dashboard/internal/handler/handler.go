@@ -33,6 +33,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	subscriptionID := q.Get("subscription_id")
 	destinationURL := q.Get("destination_url")
 	groupBy := q.Get("group_by")
+	attemptsOp := q.Get("attempts_op")
+	if attemptsOp != ">" && attemptsOp != "<" && attemptsOp != "=" {
+		attemptsOp = ""
+	}
+	attemptsVal, _ := strconv.Atoi(q.Get("attempts_val"))
 
 	page, _ := strconv.Atoi(q.Get("page"))
 	if page < 1 {
@@ -46,24 +51,26 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	stats, _ := h.store.StatusStats(ctx)
 
 	data := map[string]any{
-		"Stats":     stats,
-		"Status":    status,
-		"EventID":   eventID,
-		"SubID":     subscriptionID,
-		"DestURL":   destinationURL,
-		"GroupBy":   groupBy,
-		"Page":      page,
-		"HasPrev":   false,
-		"HasNext":   false,
-		"Records":   nil,
-		"GroupRows": nil,
+		"Stats":       stats,
+		"Status":      status,
+		"EventID":     eventID,
+		"SubID":       subscriptionID,
+		"DestURL":     destinationURL,
+		"GroupBy":     groupBy,
+		"AttemptsOp":  attemptsOp,
+		"AttemptsVal": attemptsVal,
+		"Page":        page,
+		"HasPrev":     false,
+		"HasNext":     false,
+		"Records":     nil,
+		"GroupRows":   nil,
 	}
 
 	if groupBy != "" {
 		rows, _ := h.store.GroupDeliveries(ctx, groupBy, status, eventID, subscriptionID, destinationURL)
 		data["GroupRows"] = rows
 	} else {
-		records, _ := h.store.ListDeliveries(ctx, status, eventID, subscriptionID, destinationURL, pageSize+1, offset)
+		records, _ := h.store.ListDeliveries(ctx, status, eventID, subscriptionID, destinationURL, attemptsOp, attemptsVal, pageSize+1, offset)
 		hasNext := len(records) > pageSize
 		if hasNext {
 			records = records[:pageSize]
@@ -123,7 +130,7 @@ var funcMap = template.FuncMap{
 		}
 	},
 	// buildURL builds the list-view URL preserving all active filters.
-	"buildURL": func(status, eventID, subID, destURL, groupBy string, page int) string {
+	"buildURL": func(status, eventID, subID, destURL, groupBy, attemptsOp string, attemptsVal, page int) string {
 		u := fmt.Sprintf("/?page=%d", page)
 		if status != "" {
 			u += "&status=" + url.QueryEscape(status)
@@ -139,6 +146,10 @@ var funcMap = template.FuncMap{
 		}
 		if groupBy != "" {
 			u += "&group_by=" + url.QueryEscape(groupBy)
+		}
+		if attemptsOp != "" {
+			u += "&attempts_op=" + url.QueryEscape(attemptsOp)
+			u += fmt.Sprintf("&attempts_val=%d", attemptsVal)
 		}
 		return u
 	},
@@ -158,8 +169,8 @@ var funcMap = template.FuncMap{
 		}
 		return u
 	},
-	"hasAnyFilter": func(status, eventID, subID, destURL string) bool {
-		return status != "" || eventID != "" || subID != "" || destURL != ""
+	"hasAnyFilter": func(status, eventID, subID, destURL, attemptsOp string) bool {
+		return status != "" || eventID != "" || subID != "" || destURL != "" || attemptsOp != ""
 	},
 	"groupByLabel": func(groupBy string) string {
 		switch groupBy {
@@ -513,6 +524,17 @@ td.num    { text-align: right; max-width: 80px; }
             <input type="text" name="subscription_id" value="{{ .SubID }}" placeholder="sub_01H...">
             <label>Destination URL:</label>
             <input type="text" name="destination_url" value="{{ .DestURL }}" placeholder="https://...">
+
+            <label>Retry #:</label>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <select name="attempts_op" id="att-op" style="width:auto;" onchange="document.getElementById('att-val').disabled=!this.value">
+                <option value="">— Any —</option>
+                <option value="="{{ if eq .AttemptsOp "=" }} selected{{ end }}>=</option>
+                <option value=">"{{ if eq .AttemptsOp ">" }} selected{{ end }}>&gt;</option>
+                <option value="<"{{ if eq .AttemptsOp "<" }} selected{{ end }}>&lt;</option>
+              </select>
+              <input type="number" name="attempts_val" id="att-val" value="{{ .AttemptsVal }}" min="0" style="width:70px;"{{ if eq .AttemptsOp "" }} disabled{{ end }}>
+            </div>
           </div>
           <div class="filter-actions">
             <label style="font-weight:bold;">Group by:</label>
@@ -523,7 +545,7 @@ td.num    { text-align: right; max-width: 80px; }
               <option value="destination_url"{{ if eq .GroupBy "destination_url" }} selected{{ end }}>Destination URL</option>
             </select>
             <button type="submit" class="btn">&#9654; Apply</button>
-            {{ if hasAnyFilter .Status .EventID .SubID .DestURL }}
+            {{ if hasAnyFilter .Status .EventID .SubID .DestURL .AttemptsOp }}
             <button type="button" class="btn-clear" onclick="location.href='/'">&#10005; Clear filters</button>
             {{ end }}
           </div>
@@ -607,7 +629,7 @@ td.num    { text-align: right; max-width: 80px; }
               <th>Destination URL</th>
               <th>MTH</th>
               <th>Status</th>
-              <th>#</th>
+              <th>Retry #</th>
               <th>Next Attempt</th>
               <th>Last Error</th>
               <th>Payload</th>
@@ -651,11 +673,11 @@ td.num    { text-align: right; max-width: 80px; }
 
         <div class="pager">
           {{ if .HasPrev }}
-          <a href="{{ buildURL .Status .EventID .SubID .DestURL .GroupBy (sub .Page 1) }}">&#9664; Prev</a>
+          <a href="{{ buildURL .Status .EventID .SubID .DestURL .GroupBy .AttemptsOp .AttemptsVal (sub .Page 1) }}">&#9664; Prev</a>
           {{ end }}
           <span class="cur">Page {{ .Page }}</span>
           {{ if .HasNext }}
-          <a href="{{ buildURL .Status .EventID .SubID .DestURL .GroupBy (add .Page 1) }}">Next &#9654;</a>
+          <a href="{{ buildURL .Status .EventID .SubID .DestURL .GroupBy .AttemptsOp .AttemptsVal (add .Page 1) }}">Next &#9654;</a>
           {{ end }}
         </div>
 
